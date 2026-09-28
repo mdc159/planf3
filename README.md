@@ -17,7 +17,7 @@ The big unlock is the new Mythos-class models (Fable 5 and what follows). They r
 
 ## Install
 
-Planf3 is a Claude Code Agent Skill (it runs in Pi, Codex, opencode, or any harness that reads `.claude/skills/`). There's nothing to compile; "installing" is putting the skill where your agent can find it and wiring one API key for image generation.
+Planf3 is a Claude Code Agent Skill (it runs in Pi, Codex, opencode, or any harness that reads `.claude/skills/`). There's nothing to compile; "installing" is putting the skill where your agent can find it next to the `codex-image` skill, which generates the images.
 
 ### Agentic Install
 
@@ -26,21 +26,21 @@ Open this repo in your agentic coding tool and prompt:
 ```
 Read .claude/skills/planf3/SKILL.md and install this skill for me:
 copy it to ~/.claude/skills/planf3 so /planf3 works in every project,
-then copy .env.sample to .env and tell me which key to set.
+and check that the codex-image skill, herdr, and a ChatGPT Codex login are present.
 ```
 
-The skill is self-contained. `SKILL.md`, the five `workflows/`, and the two image `scripts/` move together with no cross-dependencies.
+`SKILL.md` and the five `workflows/` move together. The one outside dependency is the `codex-image` skill, expected at `.claude/skills/codex-image/` beside planf3.
 
 ### Manual Install
 
-**Prereqs:** [`claude`](https://docs.claude.com/en/docs/claude-code) (or [`pi`](https://pi.dev/) / Codex / opencode), [`uv`](https://docs.astral.sh/uv/) (runs the image scripts), and an [`OPENAI_API_KEY`](https://platform.openai.com/api-keys) for `gpt-image-2`.
+**Prereqs:** [`claude`](https://docs.claude.com/en/docs/claude-code) (or [`pi`](https://pi.dev/) / Codex / opencode), [`uv`](https://docs.astral.sh/uv/), and for images: the `codex-image` skill, herdr, and the [`codex`](https://github.com/openai/codex) CLI logged in with ChatGPT (no API key).
 
 ```bash
 # 1. Use it project-local (already here), or install globally:
 cp -r .claude/skills/planf3 ~/.claude/skills/planf3   # /planf3 everywhere
 
-# 2. Wire the image-generation key
-cp .env.sample .env                                    # then add OPENAI_API_KEY=sk-...
+# 2. Images: install the codex-image skill beside planf3, run inside herdr
+codex login status                                     # must say "Logged in using ChatGPT"
 
 # 3. Run it
 #    /planf3 "<what you want planned>" [questionable]
@@ -121,7 +121,7 @@ Planf3 is one skill, but the prompt routes to one of five dedicated workflows. T
 | **Update Plan** | Change, extend, or revise an existing plan (surgical edit + amendment) | [`update-plan.md`](.claude/skills/planf3/workflows/update-plan.md) |
 | **Update References** | Refresh metadata or wire bidirectional back/forward references | [`update-references.md`](.claude/skills/planf3/workflows/update-references.md) |
 | **Build Plan** | Implement the work in an existing plan, updating status markers as it goes | [`build-plan.md`](.claude/skills/planf3/workflows/build-plan.md) |
-| **Image Generation** | Subworkflow — fills or regenerates the embedded `gpt-image-2` diagrams | [`image-generation.md`](.claude/skills/planf3/workflows/image-generation.md) |
+| **Image Generation** | Subworkflow — fills or regenerates the embedded diagrams via `codex-image` | [`image-generation.md`](.claude/skills/planf3/workflows/image-generation.md) |
 
 The **Build Plan** workflow is the payoff: a fresh agent reads the full plan (every image, every back reference at depth 1), then executes phases top to bottom, looping on each phase's tests until they pass, marking `[x]` or `[f]` as it goes.
 
@@ -156,19 +156,15 @@ planf3/
 ├── README.md                       # this file
 ├── RAW.md                          # the raw think-out-loud spec that started the build
 ├── legacy_v1_meta_plan.md          # the V1 markdown spec planf3 evolved from
-├── .env.sample                     # OPENAI_API_KEY= (image generation)
 │
 ├── .claude/skills/planf3/          # the meta-skill itself (self-contained)
 │   ├── SKILL.md                    # API, instructions, and the HTML Plan Template
-│   ├── workflows/                  # one file per workflow
-│   │   ├── create-plan.md
-│   │   ├── update-plan.md
-│   │   ├── update-references.md
-│   │   ├── build-plan.md
-│   │   └── image-generation.md     # subworkflow — gpt-image-2 diagrams
-│   └── scripts/
-│       ├── generate_gpt_image.py   # uv single-file script — create image
-│       └── edit_gpt_image.py       # uv single-file script — edit image
+│   └── workflows/                  # one file per workflow
+│       ├── create-plan.md
+│       ├── update-plan.md
+│       ├── update-references.md
+│       ├── build-plan.md
+│       └── image-generation.md     # subworkflow — diagrams via codex-image
 │
 ├── prompts/
 │   └── pi-iroh-coms.md             # the demo prompt
@@ -207,7 +203,7 @@ open specs/pi-iroh-coms-net.html        # macOS
 Honest edges to know before you ship plans with this:
 
 - **It's tuned for top-tier models.** Planf3 deliberately spends tokens and time. On smaller models the HTML, metadata, and image steps can overwhelm the budget; it runs, but the payoff curve is steepest on Mythos-class models.
-- **`OPENAI_API_KEY` gates the images.** No key, no diagrams. The plan still writes; the `{{...IMAGE}}` slots just stay empty until you run the Image Generation workflow.
+- **`codex-image` gates the images.** Outside herdr or without a ChatGPT Codex login, no diagrams. The plan still writes; the `{{...IMAGE}}` slots just stay empty until you run the Image Generation workflow.
 - **The agent will sometimes over-reach.** These models take one instruction and run with the whole context, so expect occasional extra edits beyond what you asked. Be surgical in your prompts; review the diff.
 - **Stray context bleeds in.** If other specs sit in `specs/`, a create run may reference them. Keep the output directory clean, or point back references deliberately.
 - **`AI_DOCS/` and `APP_DOCS/` are optional.** The skill reads them if they exist; it won't create them. Add them when you want the plan grounded in your own documentation.
